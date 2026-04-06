@@ -351,47 +351,40 @@ function ContributionGrid({
           <tr className="bg-brand-blue text-white">
             <th className="px-2 py-2 text-left font-semibold w-10 sticky left-0 bg-brand-blue z-10">Mo</th>
             {years.map((yr) => (
-              <th key={yr} className={`px-1 py-2 text-center font-semibold ${actual ? 'w-40' : 'w-24'}`}>
-                {yr}
+              <th key={yr} className="px-1 py-2 text-center font-semibold w-28">
+                {actual ? (
+                  <div className="flex flex-col gap-0.5">
+                    <span>{yr}</span>
+                    <div className="flex gap-1 justify-center text-[10px]">
+                      <span className="bg-blue-200/40 rounded px-1 font-medium">Plan</span>
+                      <span className="bg-amber-200/40 rounded px-1 font-medium">Actual</span>
+                    </div>
+                  </div>
+                ) : yr}
               </th>
             ))}
           </tr>
-          {actual && (
-            <tr className="bg-gray-50 border-b-2 border-gray-300">
-              <td className="px-2 py-1.5 sticky left-0 bg-gray-50 z-10">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Mo</span>
-              </td>
-              {years.map((yr) => (
-                <td key={yr} className="px-1 py-1.5">
-                  <div className="grid grid-cols-2 gap-1 text-xs text-center">
-                    <span className="bg-blue-100 text-blue-700 font-bold rounded py-0.5">Plan</span>
-                    <span className="bg-amber-100 text-amber-700 font-bold rounded py-0.5">Actual</span>
-                  </div>
-                </td>
-              ))}
-            </tr>
-          )}
         </thead>
         <tbody>
           {MONTH_NAMES.map((mon, mIdx) => {
             const calMonth = mIdx + 1
+            const rowBg = mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'
             return (
-              <tr key={mon} className={mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+              <tr key={mon} className={rowBg}>
                 {/* Month label */}
-                <td className={`px-2 py-1 font-semibold sticky left-0 z-10 ${mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'} ${mIdx === 0 ? 'text-gray-400' : 'text-gray-600'}`}>
+                <td className={`px-2 py-1 font-semibold sticky left-0 z-10 ${rowBg} ${mIdx === 0 ? 'text-gray-400' : 'text-gray-600'}`}>
                   {mon}
                 </td>
                 {years.map((yr, yrIdx) => {
                   const yyyyMM = `${yr}-${String(calMonth).padStart(2, '0')}`
-                  // Disable cells before startMonth in year 0
                   const disabled = yrIdx === 0 && mIdx < startMonth
                   const planVal = getPlanned(yyyyMM)
                   const actualVal = getActual(yyyyMM)
 
                   if (disabled) {
                     return (
-                      <td key={yr} className="px-1 py-1.5">
-                        <div className={`${actual ? 'grid grid-cols-2 gap-1' : ''}`}>
+                      <td key={yr} className="px-1 py-1">
+                        <div className="flex flex-col gap-1">
                           <div className="h-8 bg-gray-100 rounded opacity-40" />
                           {actual && <div className="h-8 bg-gray-100 rounded opacity-40" />}
                         </div>
@@ -400,9 +393,9 @@ function ContributionGrid({
                   }
 
                   return (
-                    <td key={yr} className="px-1 py-1.5">
+                    <td key={yr} className="px-1 py-1">
                       {actual ? (
-                        <div className="grid grid-cols-2 gap-1">
+                        <div className="flex flex-col gap-1">
                           <CellInput
                             value={planVal}
                             onChange={(v) => onChange(yyyyMM, v)}
@@ -444,16 +437,16 @@ function ContributionGrid({
               return (
                 <td key={yr} className="px-1 py-1.5">
                   {actual ? (
-                    <div className="grid grid-cols-2 gap-0.5">
-                      <span className="text-center text-[9px] text-brand-blue font-bold">
+                    <div className="flex flex-col gap-0.5 items-center">
+                      <span className="text-xs text-blue-700 font-bold">
                         {planTotal > 0 ? `₱${(planTotal/1000).toFixed(0)}K` : '—'}
                       </span>
-                      <span className="text-center text-[9px] text-amber-600 font-bold">
+                      <span className="text-xs text-amber-600 font-bold">
                         {actualTotal > 0 ? `₱${(actualTotal/1000).toFixed(0)}K` : '—'}
                       </span>
                     </div>
                   ) : (
-                    <span className="block text-center text-[9px] text-brand-blue font-bold">
+                    <span className="block text-center text-xs text-blue-700 font-bold">
                       {planTotal > 0 ? `₱${(planTotal/1000).toFixed(0)}K` : '—'}
                     </span>
                   )}
