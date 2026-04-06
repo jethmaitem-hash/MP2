@@ -62,6 +62,12 @@ export function calculateScenario(input: ScenarioInput): ScenarioResult {
 
   const contribMap = buildContribMap(input)
 
+  // Per-year rate helper: uses dividendRates[i] if available, else falls back to dividendRate
+  const getRateForYear = (relYear: number): number =>
+    (input.dividendRates && input.dividendRates.length >= relYear)
+      ? input.dividendRates[relYear - 1]
+      : input.dividendRate
+
   const monthlyRows: MonthlyRow[] = []
   const yearlyRows: YearlyRow[] = []
 
@@ -71,9 +77,10 @@ export function calculateScenario(input: ScenarioInput): ScenarioResult {
     const calYear = startYear + relYear - 1
     const yearOpeningBalance = carriedBalance
     const firstMonth = relYear === 1 ? startMonth : 1
+    const yearRate = getRateForYear(relYear)
 
     // Dividend on the balance carried from the prior year-end
-    const dividendOnCarried = yearOpeningBalance * input.dividendRate
+    const dividendOnCarried = yearOpeningBalance * yearRate
 
     let yearContribs = 0
     let dividendOnNew = 0
@@ -89,7 +96,7 @@ export function calculateScenario(input: ScenarioInput): ScenarioResult {
       yearContribs += contrib
 
       // Prorated dividend for this contribution for the rest of this calendar year
-      const divOnContrib = contrib * input.dividendRate * (13 - m) / 12
+      const divOnContrib = contrib * yearRate * (13 - m) / 12
       dividendOnNew += divOnContrib
 
       const isLastMonth = m === 12
@@ -101,7 +108,7 @@ export function calculateScenario(input: ScenarioInput): ScenarioResult {
 
       // Monthly estimate: prorated accrual on running balance (for display)
       const monthlyDividendEstimate =
-        (yearOpeningBalance * input.dividendRate) / 12 + divOnContrib
+        (yearOpeningBalance * yearRate) / 12 + divOnContrib
 
       yearMonthRows.push({
         year: relYear,

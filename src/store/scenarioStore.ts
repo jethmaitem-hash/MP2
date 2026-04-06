@@ -174,6 +174,8 @@ export function useScenarioStore() {
               ...s,
               actualContributions: s.actualContributions ?? [],
               fixedFrequency: s.fixedFrequency ?? ('monthly' as const),
+              // dividendRates is optional — leave undefined if not present (uses dividendRate fallback)
+              dividendRates: s.dividendRates ?? undefined,
             })),
           }
           dispatch({ type: 'HYDRATE', payload: normalized })
