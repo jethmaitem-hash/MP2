@@ -225,22 +225,80 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
 
         {/* ── Dividend Rate ── */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Dividend Rate (%)
-            <InfoTooltip content="Expected annual dividend rate. MP2 historical rates: 5.69%–8.11%. Default is 6%." />
-          </label>
-          <div className="relative">
-            <input
-              type="number" min={0} max={20} step={0.01}
-              value={(scenario.dividendRate * 100).toFixed(2)}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value) || 0
-                update({ dividendRate: Math.min(20, Math.max(0, val)) / 100 })
-              }}
-              className="w-full pr-8 pl-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:border-brand-blue focus:ring-2 focus:ring-blue-100 focus:outline-none transition-colors"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">%</span>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-semibold text-gray-700">
+              Dividend Rate (%)
+              <InfoTooltip content="Expected annual dividend rate. MP2 historical rates: 5.69%–8.11%. Default is 6%." />
+            </label>
+            {/* Per-year toggle */}
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <div
+                onClick={() => {
+                  if (scenario.dividendRates && scenario.dividendRates.length > 0) {
+                    update({ dividendRates: undefined })
+                  } else {
+                    update({ dividendRates: Array(5).fill(scenario.dividendRate) })
+                  }
+                }}
+                className={`relative w-8 h-4 rounded-full transition-colors ${scenario.dividendRates && scenario.dividendRates.length > 0 ? 'bg-brand-blue' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${scenario.dividendRates && scenario.dividendRates.length > 0 ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </div>
+              <span className="text-xs text-gray-500 whitespace-nowrap">Per-year rates</span>
+            </label>
           </div>
+
+          {/* Single rate mode */}
+          {!(scenario.dividendRates && scenario.dividendRates.length > 0) && (
+            <div className="relative">
+              <input
+                type="number" min={0} max={20} step={0.01}
+                value={(scenario.dividendRate * 100).toFixed(2)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0
+                  update({ dividendRate: Math.min(20, Math.max(0, val)) / 100 })
+                }}
+                className="w-full pr-8 pl-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:border-brand-blue focus:ring-2 focus:ring-blue-100 focus:outline-none transition-colors"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">%</span>
+            </div>
+          )}
+
+          {/* Per-year rate inputs */}
+          {scenario.dividendRates && scenario.dividendRates.length > 0 && (
+            <div className="space-y-1.5">
+              {scenario.dividendRates.map((rate, i) => {
+                const calYear = years[i]
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">
+                      Year {i + 1} <span className="text-gray-400">({calYear})</span>
+                    </span>
+                    <div className="relative flex-1">
+                      <input
+                        type="number" min={0} max={20} step={0.01}
+                        value={(rate * 100).toFixed(2)}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0
+                          const updated = [...(scenario.dividendRates ?? [])]
+                          updated[i] = Math.min(20, Math.max(0, val)) / 100
+                          update({ dividendRates: updated })
+                        }}
+                        className="w-full pr-7 pl-3 py-1.5 border border-gray-200 rounded-lg text-sm font-semibold text-gray-900 focus:border-brand-blue focus:ring-2 focus:ring-blue-100 focus:outline-none transition-colors"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">%</span>
+                    </div>
+                  </div>
+                )
+              })}
+              <p className="text-xs text-gray-400 pt-0.5">
+                Avg:{' '}
+                <span className="font-semibold text-gray-600">
+                  {((scenario.dividendRates.reduce((s, r) => s + r, 0) / scenario.dividendRates.length) * 100).toFixed(2)}%
+                </span>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Start Date ── */}
@@ -293,37 +351,32 @@ function ContributionGrid({
           <tr className="bg-brand-blue text-white">
             <th className="px-2 py-2 text-left font-semibold w-10 sticky left-0 bg-brand-blue z-10">Mo</th>
             {years.map((yr) => (
-              <th key={yr} className={`px-1 py-2 text-center font-semibold ${actual ? 'w-32' : 'w-24'}`}>
-                {yr}
+              <th key={yr} className="px-1 py-2 text-center font-semibold w-28">
+                {actual ? (
+                  <div className="flex flex-col gap-0.5">
+                    <span>{yr}</span>
+                    <div className="flex gap-1 justify-center text-[10px]">
+                      <span className="bg-blue-200/40 rounded px-1 font-medium">Plan</span>
+                      <span className="bg-amber-200/40 rounded px-1 font-medium">Actual</span>
+                    </div>
+                  </div>
+                ) : yr}
               </th>
             ))}
           </tr>
-          {actual && (
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <td className="px-2 py-1 sticky left-0 bg-gray-50 z-10 text-gray-400" />
-              {years.map((yr) => (
-                <td key={yr} className="px-1 py-1">
-                  <div className="grid grid-cols-2 gap-0.5 text-[10px] text-center">
-                    <span className="text-brand-blue font-semibold">Plan</span>
-                    <span className="text-amber-600 font-semibold">Actual</span>
-                  </div>
-                </td>
-              ))}
-            </tr>
-          )}
         </thead>
         <tbody>
           {MONTH_NAMES.map((mon, mIdx) => {
             const calMonth = mIdx + 1
+            const rowBg = mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'
             return (
-              <tr key={mon} className={mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+              <tr key={mon} className={rowBg}>
                 {/* Month label */}
-                <td className={`px-2 py-1 font-semibold sticky left-0 z-10 ${mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'} ${mIdx === 0 ? 'text-gray-400' : 'text-gray-600'}`}>
+                <td className={`px-2 py-1 font-semibold sticky left-0 z-10 ${rowBg} ${mIdx === 0 ? 'text-gray-400' : 'text-gray-600'}`}>
                   {mon}
                 </td>
                 {years.map((yr, yrIdx) => {
                   const yyyyMM = `${yr}-${String(calMonth).padStart(2, '0')}`
-                  // Disable cells before startMonth in year 0
                   const disabled = yrIdx === 0 && mIdx < startMonth
                   const planVal = getPlanned(yyyyMM)
                   const actualVal = getActual(yyyyMM)
@@ -331,9 +384,9 @@ function ContributionGrid({
                   if (disabled) {
                     return (
                       <td key={yr} className="px-1 py-1">
-                        <div className={`${actual ? 'grid grid-cols-2 gap-0.5' : ''}`}>
-                          <div className="h-6 bg-gray-100 rounded opacity-40" />
-                          {actual && <div className="h-6 bg-gray-100 rounded opacity-40" />}
+                        <div className="flex flex-col gap-1">
+                          <div className="h-8 bg-gray-100 rounded opacity-40" />
+                          {actual && <div className="h-8 bg-gray-100 rounded opacity-40" />}
                         </div>
                       </td>
                     )
@@ -342,7 +395,7 @@ function ContributionGrid({
                   return (
                     <td key={yr} className="px-1 py-1">
                       {actual ? (
-                        <div className="grid grid-cols-2 gap-0.5">
+                        <div className="flex flex-col gap-1">
                           <CellInput
                             value={planVal}
                             onChange={(v) => onChange(yyyyMM, v)}
@@ -384,16 +437,16 @@ function ContributionGrid({
               return (
                 <td key={yr} className="px-1 py-1.5">
                   {actual ? (
-                    <div className="grid grid-cols-2 gap-0.5">
-                      <span className="text-center text-[9px] text-brand-blue font-bold">
+                    <div className="flex flex-col gap-0.5 items-center">
+                      <span className="text-xs text-blue-700 font-bold">
                         {planTotal > 0 ? `₱${(planTotal/1000).toFixed(0)}K` : '—'}
                       </span>
-                      <span className="text-center text-[9px] text-amber-600 font-bold">
+                      <span className="text-xs text-amber-600 font-bold">
                         {actualTotal > 0 ? `₱${(actualTotal/1000).toFixed(0)}K` : '—'}
                       </span>
                     </div>
                   ) : (
-                    <span className="block text-center text-[9px] text-brand-blue font-bold">
+                    <span className="block text-center text-xs text-blue-700 font-bold">
                       {planTotal > 0 ? `₱${(planTotal/1000).toFixed(0)}K` : '—'}
                     </span>
                   )}
@@ -416,7 +469,8 @@ interface CellInputProps {
 
 function CellInput({ value, onChange, color, wide }: CellInputProps) {
   const ring = color === 'blue' ? 'focus:ring-blue-300 focus:border-brand-blue' : 'focus:ring-amber-300 focus:border-amber-400'
-  const filled = color === 'blue' ? 'bg-blue-50 text-brand-blue' : 'bg-amber-50 text-amber-700'
+  const filled = color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-amber-100 text-amber-700 border-amber-300'
+  const empty = color === 'blue' ? 'bg-blue-50/40 text-gray-400 border-blue-200' : 'bg-amber-50/40 text-gray-400 border-amber-200'
 
   return (
     <input
@@ -426,8 +480,8 @@ function CellInput({ value, onChange, color, wide }: CellInputProps) {
       value={value || ''}
       placeholder="—"
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-      className={`w-full h-6 px-1 text-[10px] font-semibold text-center border rounded focus:outline-none focus:ring-1 transition-colors placeholder:text-gray-300
-        ${value > 0 ? filled : 'bg-white text-gray-400 border-gray-200'}
+      className={`w-full h-8 px-1 text-xs font-semibold text-center border rounded focus:outline-none focus:ring-1 transition-colors placeholder:text-gray-300
+        ${value > 0 ? filled : empty}
         ${ring} ${wide ? '' : ''}`}
     />
   )

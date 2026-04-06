@@ -12,7 +12,8 @@ export interface ScenarioInput {
   id: string
   name: string
   investmentPeriod: 5           // always 5 years (MP2 standard)
-  dividendRate: number          // decimal, e.g. 0.06 for 6%
+  dividendRate: number          // decimal, e.g. 0.06 for 6% (used as fallback when dividendRates not set)
+  dividendRates?: number[]      // optional per-year rates [yr1, yr2, yr3, yr4, yr5]; overrides dividendRate when present
   startDate: string             // ISO date string YYYY-MM-DD
 
   // Contribution settings
