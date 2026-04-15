@@ -46,7 +46,12 @@ export function YearlyBreakdown({ rows }: YearlyBreakdownProps) {
             {rows.map((row, idx) => (
               <tr key={row.year} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                 <td className="px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">
-                  Year {row.year}
+                  {row.year <= 5 ? `Year ${row.year}` : (
+                    <span className="flex items-center gap-1.5">
+                      Year {row.year}
+                      <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1 py-0.5 font-bold">Partial</span>
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap font-mono text-xs sm:text-sm">
                   {formatPHP(row.openingBalance)}

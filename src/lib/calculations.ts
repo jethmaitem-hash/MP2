@@ -142,10 +142,70 @@ export function calculateScenario(input: ScenarioInput): ScenarioResult {
     })
   }
 
+  // ── Partial 6th year ──────────────────────────────────────────────────────
+  // If savings started mid-year (e.g., April), the 5 calendar years only cover
+  // 57 months. Add the remaining months (Jan to startMonth-1 of year 6) to
+  // complete the full 60-month term.
+  if (startMonth > 1) {
+    const calYear6 = startYear + 5
+    const partialEndMonth = startMonth - 1          // e.g., 3 for an April start
+    const yearRate6 = getRateForYear(6)             // falls back to dividendRate
+    const year6Opening = carriedBalance
+
+    // Carried balance earns prorated dividend for the partial months
+    const dividendOnCarried6 = year6Opening * yearRate6 * partialEndMonth / 12
+
+    let yearContribs6 = 0
+    let dividendOnNew6 = 0
+
+    for (let m = 1; m <= partialEndMonth; m++) {
+      const key = `${calYear6}-${String(m).padStart(2, '0')}`
+      const contrib = contribMap.get(key) ?? 0
+      yearContribs6 += contrib
+
+      // Dividend earned from this contribution until the maturity month
+      const divOnContrib = contrib * yearRate6 * (partialEndMonth - m + 1) / 12
+      dividendOnNew6 += divOnContrib
+
+      const isLastMonth = m === partialEndMonth
+      const runningBalance = year6Opening + yearContribs6
+      const dividendAccrued = isLastMonth ? dividendOnCarried6 + dividendOnNew6 : 0
+      const closingBalance = runningBalance + dividendAccrued
+      const monthlyDividendEstimate = (year6Opening * yearRate6) / 12 + divOnContrib
+
+      monthlyRows.push({
+        year: 6,
+        calendarYear: calYear6,
+        calendarMonth: m,
+        label: format(new Date(calYear6, m - 1, 1), 'MMM yyyy'),
+        openingBalance: year6Opening,
+        contribution: contrib,
+        dividendOnContribution: divOnContrib,
+        monthlyDividendEstimate,
+        dividendAccrued,
+        runningBalance,
+        closingBalance,
+      })
+    }
+
+    const totalYear6Dividend = dividendOnCarried6 + dividendOnNew6
+    carriedBalance = year6Opening + yearContribs6 + totalYear6Dividend
+
+    yearlyRows.push({
+      year: 6,
+      calendarYear: calYear6,
+      openingBalance: year6Opening,
+      contributions: yearContribs6,
+      dividendOnCarriedBalance: dividendOnCarried6,
+      dividendOnNewContributions: dividendOnNew6,
+      dividends: totalYear6Dividend,
+      closingBalance: carriedBalance,
+    })
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const totalContributions = yearlyRows.reduce((s, r) => s + r.contributions, 0)
   const totalDividends = yearlyRows.reduce((s, r) => s + r.dividends, 0)
-
-  // Smart UX: find highest contribution month
   let highestContributionMonth: { label: string; amount: number } | null = null
   let highestAmount = 0
   let totalContributionMonths = 0

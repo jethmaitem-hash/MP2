@@ -126,10 +126,18 @@ export function MP2Calculator() {
                 totalContributionMonths={result.totalContributionMonths}
               />
 
-              <p className="text-xs text-gray-400 text-center pb-4">
-                Estimate only. MP2 dividends depend on Pag-IBIG Fund&apos;s annual board-declared rates.
-                Past performance does not guarantee future results.
-              </p>
+              <div className="text-center pb-6 space-y-1">
+                <p className="text-xs text-gray-400">
+                  Estimate only. MP2 dividends depend on Pag-IBIG Fund&apos;s annual board-declared rates.
+                  Past performance does not guarantee future results.
+                </p>
+                <p className="text-xs text-gray-300">
+                  Tool by{' '}
+                  <a href="mailto:jwmdigitalsolutions@gmail.com" className="text-brand-blue/60 hover:text-brand-blue transition-colors underline underline-offset-2">
+                    jwmdigitalsolutions@gmail.com
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
         ) : (
