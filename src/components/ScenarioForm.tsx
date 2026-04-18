@@ -369,7 +369,7 @@ function ContributionGrid({
             {gridYears.map((yr, yrIdx) => {
               const isPartial = hasPartialYear && yrIdx === 5
               return (
-                <th key={yr} className="px-1 py-2.5 text-center font-bold w-28">
+                <th key={yr} className="px-1 py-2.5 text-center font-bold w-36">
                   <div className="flex flex-col gap-0.5 items-center">
                     <span className={isPartial ? 'text-brand-gold' : ''}>{yr}</span>
                     {isPartial && (
@@ -414,8 +414,8 @@ function ContributionGrid({
                     return (
                       <td key={yr} className="px-1 py-1.5">
                         <div className="flex flex-col gap-1">
-                          <div className="h-9 bg-gray-100 rounded-lg opacity-30" />
-                          {actual && <div className="h-9 bg-gray-100 rounded-lg opacity-30" />}
+                          <div className="h-11 bg-gray-100 rounded-lg opacity-30" />
+                          {actual && <div className="h-11 bg-gray-100 rounded-lg opacity-30" />}
                         </div>
                       </td>
                     )
@@ -513,9 +513,9 @@ function CellInput({ value, onChange, color }: CellInputProps) {
       min={0}
       step={500}
       value={value || ''}
-      placeholder="0"
+      placeholder="—"
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-      className={`w-full h-9 px-1.5 text-xs font-semibold text-center border-2 rounded-lg focus:outline-none transition-colors placeholder:text-gray-300
+      className={`w-full h-11 px-2 text-sm font-bold text-right border-2 rounded-lg focus:outline-none transition-colors placeholder:text-gray-300 placeholder:text-center
         ${value > 0 ? filled : empty}
         ${ring}`}
     />
