@@ -57,11 +57,17 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
   // ── year range for grid ───────────────────────────────────────────────────
   const startDate = parseISO(scenario.startDate)
   const startYear = getYear(startDate)
-  const startMonth = getMonth(startDate) // 0-indexed
-  const years = [0, 1, 2, 3, 4].map((i) => startYear + i)
+  const startMonthIdx = getMonth(startDate) // 0-indexed (Jan=0, Apr=3)
+  // 5 calendar years + optional partial 6th year to complete 60 months
+  const gridYears = startMonthIdx > 0
+    ? [0, 1, 2, 3, 4, 5].map((i) => startYear + i)
+    : [0, 1, 2, 3, 4].map((i) => startYear + i)
 
   const totalPlanned = scenario.contributions.reduce((s, c) => s + c.amount, 0)
   const totalActual  = (scenario.actualContributions ?? []).reduce((s, c) => s + c.amount, 0)
+
+  // For per-year dividend rate UI we still need 0-indexed years 0-4
+  const years = [0, 1, 2, 3, 4].map((i) => startYear + i)
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6">
@@ -107,13 +113,35 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
       </div>
 
       <div className="space-y-4">
-        {/* ── 5-Year badge ── */}
+        {/* ── 5-Year badge + Start Date (top priority — sets the grid dates) ── */}
         <div className="flex items-center gap-2 py-2 px-3 bg-blue-50 rounded-xl border border-blue-100">
           <svg className="w-4 h-4 text-brand-blue flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className="text-xs text-brand-blue font-semibold">5-Year Investment Period</span>
+          <span className="text-xs text-brand-blue font-semibold">5-Year (60-Month) Investment Period</span>
           <span className="ml-auto text-[10px] bg-brand-gold text-white px-1.5 py-0.5 rounded font-bold">MP2</span>
+        </div>
+
+        {/* ── Start Date — moved to top so grid columns update immediately ── */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Account Start Date
+            <InfoTooltip content="Month you open your MP2 account. The contribution grid starts from this month. The 5-year (60-month) period ends exactly 5 years later." />
+          </label>
+          <input
+            type="date"
+            value={scenario.startDate}
+            onChange={(e) => update({ startDate: e.target.value })}
+            className="w-full px-3 py-2.5 border-2 border-brand-blue/30 rounded-xl text-sm text-gray-900 font-semibold focus:border-brand-blue focus:ring-2 focus:ring-blue-100 focus:outline-none transition-colors bg-blue-50/30"
+          />
+          {startMonthIdx > 0 && (
+            <p className="text-xs text-blue-600 mt-1 font-medium">
+              60-month term ends{' '}
+              <span className="font-bold">
+                {MONTH_NAMES[startMonthIdx - 1]} {startYear + 5}
+              </span>
+            </p>
+          )}
         </div>
 
         {/* ── Contribution Mode toggle ── */}
@@ -177,10 +205,10 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
           {scenario.contributionMode === 'flexible' && (
             <div className="space-y-3">
               {/* Summary row */}
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">
                   Planned total:{' '}
-                  <span className="font-bold text-gray-800">{formatPHP(totalPlanned)}</span>
+                  <span className="font-bold text-gray-900 text-sm">{formatPHP(totalPlanned)}</span>
                 </span>
                 <button type="button"
                   onClick={() => update({ contributions: [] })}
@@ -190,11 +218,10 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
                 </button>
               </div>
 
-              {/* Grid */}
+              {/* Grid — the main input surface */}
               <ContributionGrid
-                years={years}
-                startMonth={startMonth}
-                planned={scenario.contributions}
+                gridYears={gridYears}
+                startMonthIdx={startMonthIdx}
                 actual={showActual ? scenario.actualContributions : null}
                 onChange={(yyyyMM, amount) => setContribValue('contributions', yyyyMM, amount)}
                 onActualChange={(yyyyMM, amount) => setContribValue('actualContributions', yyyyMM, amount)}
@@ -207,9 +234,9 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
                 <label className="flex items-center gap-2 cursor-pointer">
                   <div
                     onClick={() => setShowActual((v) => !v)}
-                    className={`relative w-8 h-4 rounded-full transition-colors ${showActual ? 'bg-brand-blue' : 'bg-gray-300'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors ${showActual ? 'bg-brand-blue' : 'bg-gray-300'}`}
                   >
-                    <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${showActual ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showActual ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </div>
                   <span className="text-xs font-medium text-gray-600">Track actual contributions</span>
                 </label>
@@ -300,20 +327,6 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
             </div>
           )}
         </div>
-
-        {/* ── Start Date ── */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Start Date
-            <InfoTooltip content="Month you open your MP2 account. Contributions begin from this month." />
-          </label>
-          <input
-            type="date"
-            value={scenario.startDate}
-            onChange={(e) => update({ startDate: e.target.value })}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand-blue focus:ring-2 focus:ring-blue-100 focus:outline-none transition-colors"
-          />
-        </div>
       </div>
 
       <MP2InfoBox />
@@ -322,12 +335,13 @@ export function ScenarioForm({ scenario, dispatch, canDelete, canDuplicate }: Sc
 }
 
 // ─── Contribution Grid ────────────────────────────────────────────────────────
-// 12 rows (Jan–Dec) × 5 year columns, each cell = one month's contribution
+// 12 rows (Jan–Dec) × 5 or 6 year columns, each cell = one month's contribution
+// Year 1: only months from startMonthIdx onwards are active
+// Year 6 (partial): only months before startMonthIdx are active (completes 60 months)
 
 interface ContributionGridProps {
-  years: number[]
-  startMonth: number           // 0-indexed
-  planned: FlexibleContribution[]
+  gridYears: number[]           // 5 or 6 calendar years
+  startMonthIdx: number         // 0-indexed (Jan=0, Apr=3)
   actual: FlexibleContribution[] | null
   onChange: (yyyyMM: string, amount: number) => void
   onActualChange: (yyyyMM: string, amount: number) => void
@@ -336,64 +350,79 @@ interface ContributionGridProps {
 }
 
 function ContributionGrid({
-  years,
-  startMonth,
+  gridYears,
+  startMonthIdx,
   actual,
   onChange,
   onActualChange,
   getPlanned,
   getActual,
 }: ContributionGridProps) {
+  const hasPartialYear = gridYears.length === 6
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border-2 border-brand-blue/20 shadow-sm">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="bg-brand-blue text-white">
-            <th className="px-2 py-2 text-left font-semibold w-10 sticky left-0 bg-brand-blue z-10">Mo</th>
-            {years.map((yr) => (
-              <th key={yr} className="px-1 py-2 text-center font-semibold w-28">
-                {actual ? (
-                  <div className="flex flex-col gap-0.5">
-                    <span>{yr}</span>
-                    <div className="flex gap-1 justify-center text-[10px]">
-                      <span className="bg-blue-200/40 rounded px-1 font-medium">Plan</span>
-                      <span className="bg-amber-200/40 rounded px-1 font-medium">Actual</span>
-                    </div>
+            <th className="px-2 py-2.5 text-left font-bold w-10 sticky left-0 bg-brand-blue z-10 text-sm">Mo</th>
+            {gridYears.map((yr, yrIdx) => {
+              const isPartial = hasPartialYear && yrIdx === 5
+              return (
+                <th key={yr} className="px-1 py-2.5 text-center font-bold w-28">
+                  <div className="flex flex-col gap-0.5 items-center">
+                    <span className={isPartial ? 'text-brand-gold' : ''}>{yr}</span>
+                    {isPartial && (
+                      <span className="text-[9px] bg-brand-gold/30 text-brand-gold rounded px-1 font-medium leading-tight">
+                        partial
+                      </span>
+                    )}
+                    {actual && (
+                      <div className="flex gap-1 justify-center text-[10px] mt-0.5">
+                        <span className="bg-blue-200/40 rounded px-1 font-medium">Plan</span>
+                        <span className="bg-amber-200/40 rounded px-1 font-medium">Actual</span>
+                      </div>
+                    )}
                   </div>
-                ) : yr}
-              </th>
-            ))}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>
           {MONTH_NAMES.map((mon, mIdx) => {
             const calMonth = mIdx + 1
-            const rowBg = mIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'
+            const rowBg = mIdx % 2 === 0 ? 'bg-white' : 'bg-blue-50/20'
             return (
               <tr key={mon} className={rowBg}>
                 {/* Month label */}
-                <td className={`px-2 py-1 font-semibold sticky left-0 z-10 ${rowBg} ${mIdx === 0 ? 'text-gray-400' : 'text-gray-600'}`}>
+                <td className={`px-2 py-1.5 font-bold text-sm sticky left-0 z-10 ${rowBg} text-gray-700 border-r border-gray-100`}>
                   {mon}
                 </td>
-                {years.map((yr, yrIdx) => {
+                {gridYears.map((yr, yrIdx) => {
                   const yyyyMM = `${yr}-${String(calMonth).padStart(2, '0')}`
-                  const disabled = yrIdx === 0 && mIdx < startMonth
+                  // Year 1: disable months before start month
+                  const isBeforeStart = yrIdx === 0 && mIdx < startMonthIdx
+                  // Year 6 (partial): disable months from startMonthIdx onwards
+                  const isAfterEnd = hasPartialYear && yrIdx === 5 && mIdx >= startMonthIdx
+                  const disabled = isBeforeStart || isAfterEnd
+
                   const planVal = getPlanned(yyyyMM)
                   const actualVal = getActual(yyyyMM)
 
                   if (disabled) {
                     return (
-                      <td key={yr} className="px-1 py-1">
+                      <td key={yr} className="px-1 py-1.5">
                         <div className="flex flex-col gap-1">
-                          <div className="h-8 bg-gray-100 rounded opacity-40" />
-                          {actual && <div className="h-8 bg-gray-100 rounded opacity-40" />}
+                          <div className="h-9 bg-gray-100 rounded-lg opacity-30" />
+                          {actual && <div className="h-9 bg-gray-100 rounded-lg opacity-30" />}
                         </div>
                       </td>
                     )
                   }
 
                   return (
-                    <td key={yr} className="px-1 py-1">
+                    <td key={yr} className="px-1 py-1.5">
                       {actual ? (
                         <div className="flex flex-col gap-1">
                           <CellInput
@@ -424,9 +453,9 @@ function ContributionGrid({
         </tbody>
         {/* Column totals */}
         <tfoot>
-          <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
-            <td className="px-2 py-1.5 text-gray-600 sticky left-0 bg-gray-100 z-10 text-[10px]">Total</td>
-            {years.map((yr) => {
+          <tr className="bg-brand-blue/5 border-t-2 border-brand-blue/20 font-bold">
+            <td className="px-2 py-2 text-gray-600 sticky left-0 bg-brand-blue/5 z-10 text-xs font-bold border-r border-gray-100">Total</td>
+            {gridYears.map((yr) => {
               let planTotal = 0
               let actualTotal = 0
               for (let m = 1; m <= 12; m++) {
@@ -435,7 +464,7 @@ function ContributionGrid({
                 actualTotal += getActual(key)
               }
               return (
-                <td key={yr} className="px-1 py-1.5">
+                <td key={yr} className="px-1 py-2">
                   {actual ? (
                     <div className="flex flex-col gap-0.5 items-center">
                       <span className="text-xs text-blue-700 font-bold">
@@ -467,10 +496,16 @@ interface CellInputProps {
   wide?: boolean
 }
 
-function CellInput({ value, onChange, color, wide }: CellInputProps) {
-  const ring = color === 'blue' ? 'focus:ring-blue-300 focus:border-brand-blue' : 'focus:ring-amber-300 focus:border-amber-400'
-  const filled = color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-amber-100 text-amber-700 border-amber-300'
-  const empty = color === 'blue' ? 'bg-blue-50/40 text-gray-400 border-blue-200' : 'bg-amber-50/40 text-gray-400 border-amber-200'
+function CellInput({ value, onChange, color }: CellInputProps) {
+  const ring = color === 'blue'
+    ? 'focus:ring-2 focus:ring-blue-300 focus:border-brand-blue'
+    : 'focus:ring-2 focus:ring-amber-300 focus:border-amber-400'
+  const filled = color === 'blue'
+    ? 'bg-blue-100 text-blue-800 border-blue-400 font-bold'
+    : 'bg-amber-100 text-amber-800 border-amber-400 font-bold'
+  const empty = color === 'blue'
+    ? 'bg-blue-50/60 text-gray-400 border-blue-200'
+    : 'bg-amber-50/60 text-gray-400 border-amber-200'
 
   return (
     <input
@@ -478,11 +513,11 @@ function CellInput({ value, onChange, color, wide }: CellInputProps) {
       min={0}
       step={500}
       value={value || ''}
-      placeholder="—"
+      placeholder="0"
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-      className={`w-full h-8 px-1 text-xs font-semibold text-center border rounded focus:outline-none focus:ring-1 transition-colors placeholder:text-gray-300
+      className={`w-full h-9 px-1.5 text-xs font-semibold text-center border-2 rounded-lg focus:outline-none transition-colors placeholder:text-gray-300
         ${value > 0 ? filled : empty}
-        ${ring} ${wide ? '' : ''}`}
+        ${ring}`}
     />
   )
 }
