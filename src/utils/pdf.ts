@@ -11,6 +11,10 @@ function pdfMoney(amount: number): string {
   }).format(amount)
 }
 
+function getLastTableY(doc: unknown): number {
+  return (doc as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY
+}
+
 export async function exportScenarioPDF(
   scenario: ScenarioInput,
   result: ScenarioResult
@@ -21,30 +25,28 @@ export async function exportScenarioPDF(
   ])
 
   const doc = new jsPDF()
+  const pageW = doc.internal.pageSize.width
+  const margin = 14
   const now = format(new Date(), 'yyyy-MM-dd')
 
   // ── Header ────────────────────────────────────────────────────────────────
   doc.setFillColor(30, 58, 138)
-  doc.rect(0, 0, 210, 28, 'F')
+  doc.rect(0, 0, pageW, 30, 'F')
   doc.setTextColor(255, 255, 255)
-  doc.setFontSize(18)
+  doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text('Pag-IBIG MP2 Savings Calculator', 14, 14)
-  doc.setFontSize(10)
+  doc.text('Pag-IBIG MP2 Savings Calculator', margin, 13)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Generated: ${now}`, 14, 22)
+  doc.text(`Generated: ${now}   |   jwmdigitalsolutions@gmail.com`, margin, 22)
 
   // ── Scenario title ────────────────────────────────────────────────────────
   doc.setTextColor(30, 58, 138)
-  doc.setFontSize(14)
+  doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
-  doc.text(scenario.name, 14, 40)
+  doc.text(scenario.name, margin, 42)
 
   // ── Scenario inputs summary ───────────────────────────────────────────────
-  doc.setTextColor(60, 60, 60)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-
   let contribDesc = ''
   if (scenario.contributionMode === 'fixed') {
     const freq = scenario.fixedFrequency === 'monthly' ? 'Monthly' : 'Yearly'
@@ -54,107 +56,189 @@ export async function exportScenarioPDF(
     contribDesc = `Flexible — ${scenario.contributions.length} entries, ${pdfMoney(total)} total`
   }
 
+  const rateLabel = scenario.dividendRates && scenario.dividendRates.length > 0
+    ? scenario.dividendRates.map((r, i) => `Yr${i + 1}: ${formatPercent(r)}`).join('  ')
+    : formatPercent(scenario.dividendRate)
+
   const inputLines: [string, string][] = [
     ['Contribution:', contribDesc],
-    ['Investment Period:', '5 Years (MP2)'],
-    ['Dividend Rate:', formatPercent(scenario.dividendRate)],
+    ['Investment Period:', '5 Years / 60 Months (MP2)'],
+    ['Dividend Rate:', rateLabel],
     ['Start Date:', scenario.startDate],
   ]
 
+  doc.setTextColor(60, 60, 60)
+  doc.setFontSize(9)
   let y = 50
   for (const [label, value] of inputLines) {
     doc.setFont('helvetica', 'bold')
-    doc.text(label, 14, y)
+    doc.text(label, margin, y)
     doc.setFont('helvetica', 'normal')
-    doc.text(value, 70, y)
-    y += 7
+    doc.text(value, 60, y)
+    y += 6
   }
 
-  // ── Summary totals ────────────────────────────────────────────────────────
-  y += 5
-  doc.setFillColor(239, 246, 255)
-  doc.roundedRect(14, y - 5, 182, 32, 3, 3, 'F')
-  doc.setFontSize(10)
-
-  const summaryItems = [
-    ['Total Invested', pdfMoney(result.totalContributions)],
-    ['Total Dividends', pdfMoney(result.totalDividends)],
-    ['Maturity Value', pdfMoney(result.maturityValue)],
+  // ── Summary Dashboard Cards ───────────────────────────────────────────────
+  y += 4
+  const cardW = (pageW - margin * 2 - 8) / 3
+  const cards = [
+    { label: 'Total Invested',   value: pdfMoney(result.totalContributions), color: [30, 58, 138] as [number,number,number] },
+    { label: 'Total Dividends',  value: pdfMoney(result.totalDividends),     color: [5, 150, 105]  as [number,number,number] },
+    { label: 'Maturity Value',   value: pdfMoney(result.maturityValue),      color: [245, 158, 11] as [number,number,number] },
   ]
 
-  for (let i = 0; i < summaryItems.length; i++) {
-    const col = 14 + i * 62
+  cards.forEach((card, i) => {
+    const x = margin + i * (cardW + 4)
+    doc.setFillColor(245, 247, 255)
+    doc.roundedRect(x, y, cardW, 22, 2, 2, 'F')
+    doc.setDrawColor(...card.color)
+    doc.setLineWidth(0.8)
+    doc.roundedRect(x, y, cardW, 22, 2, 2, 'S')
+
     doc.setTextColor(100, 116, 139)
+    doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.text(summaryItems[i][0], col, y + 5)
-    doc.setTextColor(30, 58, 138)
+    doc.text(card.label, x + 4, y + 7)
+
+    doc.setTextColor(...card.color)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.text(summaryItems[i][1], col, y + 16)
-  }
+    doc.text(card.value, x + 4, y + 17)
+  })
 
-  y += 42
+  y += 30
 
-  // ── Yearly breakdown table ────────────────────────────────────────────────
+  // ── Year-by-Year Breakdown ────────────────────────────────────────────────
   doc.setTextColor(30, 58, 138)
-  doc.setFontSize(12)
+  doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text('Year-by-Year Breakdown', 14, y)
+  doc.text('Year-by-Year Breakdown', margin, y)
+  y += 4
 
   autoTable(doc, {
-    startY: y + 4,
-    head: [['Year', 'Opening Balance', 'Contributions', 'Dividends', 'Closing Balance']],
+    startY: y,
+    head: [['Year', 'Opening Balance', 'Contributions', 'Div on Carried', 'Div on New', 'Total Div', 'Closing Balance']],
     body: result.yearlyBreakdown.map((row) => [
-      `Year ${row.year}`,
+      row.year <= 5 ? `Year ${row.year}` : `Year ${row.year} (Partial)`,
       pdfMoney(row.openingBalance),
       pdfMoney(row.contributions),
+      pdfMoney(row.dividendOnCarriedBalance),
+      pdfMoney(row.dividendOnNewContributions),
       pdfMoney(row.dividends),
       pdfMoney(row.closingBalance),
     ]),
-    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold' },
+    foot: [[
+      'Total', '—',
+      pdfMoney(result.yearlyBreakdown.reduce((s, r) => s + r.contributions, 0)),
+      pdfMoney(result.yearlyBreakdown.reduce((s, r) => s + r.dividendOnCarriedBalance, 0)),
+      pdfMoney(result.yearlyBreakdown.reduce((s, r) => s + r.dividendOnNewContributions, 0)),
+      pdfMoney(result.totalDividends),
+      pdfMoney(result.maturityValue),
+    ]],
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+    footStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold', fontSize: 7 },
     alternateRowStyles: { fillColor: [239, 246, 255] },
-    styles: { fontSize: 9 },
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    columnStyles: {
+      0: { halign: 'left' },
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+      6: { halign: 'right', fontStyle: 'bold' },
+    },
   })
 
-  // ── Flexible contributions table (if applicable) ──────────────────────────
+  // ── Monthly Breakdown ─────────────────────────────────────────────────────
+  const afterYearly = getLastTableY(doc)
+  doc.addPage()
+
+  doc.setTextColor(30, 58, 138)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Monthly Breakdown', margin, 16)
+
+  autoTable(doc, {
+    startY: 20,
+    head: [['Month', 'Contribution', 'Opening Balance', 'Est. Monthly Div.', 'Credited Dividend', 'Closing Balance']],
+    body: result.monthlyBreakdown.map((row) => [
+      row.label,
+      row.contribution > 0 ? pdfMoney(row.contribution) : '—',
+      pdfMoney(row.openingBalance),
+      pdfMoney(row.monthlyDividendEstimate),
+      row.dividendAccrued > 0 ? pdfMoney(row.dividendAccrued) : '—',
+      pdfMoney(row.closingBalance),
+    ]),
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+    alternateRowStyles: { fillColor: [239, 246, 255] },
+    styles: { fontSize: 7, cellPadding: 1.8 },
+    columnStyles: {
+      0: { halign: 'left', cellWidth: 24 },
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right', fontStyle: 'bold' },
+    },
+    // Highlight year-end rows (dividend credited)
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        const row = result.monthlyBreakdown[data.row.index]
+        if (row && row.dividendAccrued > 0) {
+          data.cell.styles.fillColor = [220, 252, 231]
+          data.cell.styles.textColor = [5, 100, 60]
+        }
+      }
+    },
+  })
+
+  // ── Flexible contributions schedule ──────────────────────────────────────
   if (scenario.contributionMode === 'flexible' && scenario.contributions.length > 0) {
-    const afterYearly = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY
-    const newY = afterYearly + 10
+    const afterMonthly = getLastTableY(doc)
+    const flexY = afterMonthly + 10
 
-    if (newY < 250) {
-      doc.setTextColor(30, 58, 138)
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Flexible Contribution Schedule', 14, newY)
+    // Add new page if not enough room
+    const startY = flexY > 220 ? (doc.addPage(), 16) : flexY
 
-      const sorted = [...scenario.contributions].sort((a, b) => a.date.localeCompare(b.date))
+    doc.setTextColor(30, 58, 138)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Flexible Contribution Schedule', margin, startY)
 
-      autoTable(doc, {
-        startY: newY + 4,
-        head: [['Month', 'Amount']],
-        body: sorted.map((c) => [c.date, pdfMoney(c.amount)]),
-        headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [255, 251, 235] },
-        styles: { fontSize: 9 },
-        columnStyles: { 1: { halign: 'right' } },
-      })
-    }
+    const sorted = [...scenario.contributions].sort((a, b) => a.date.localeCompare(b.date))
+
+    autoTable(doc, {
+      startY: startY + 4,
+      head: [['Month', 'Planned Amount']],
+      body: sorted.map((c) => [c.date, pdfMoney(c.amount)]),
+      headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [255, 251, 235] },
+      styles: { fontSize: 8 },
+      columnStyles: { 1: { halign: 'right' } },
+    })
   }
 
-  // ── Footer ────────────────────────────────────────────────────────────────
+  // ── Footer on every page ──────────────────────────────────────────────────
   const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFontSize(8)
-    doc.setTextColor(150)
+    const pageH = doc.internal.pageSize.height
+
+    doc.setFillColor(30, 58, 138)
+    doc.rect(0, pageH - 12, pageW, 12, 'F')
+    doc.setFontSize(7)
+    doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'normal')
     doc.text(
       'This is an estimate only. Actual MP2 dividends depend on Pag-IBIG Fund performance.',
-      14,
-      doc.internal.pageSize.height - 8
+      margin, pageH - 5
     )
+    doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 5, { align: 'right' })
   }
+
+  // Suppress unused variable warning
+  void afterYearly
 
   doc.save(`mp2-${scenario.name.replace(/\s+/g, '-').toLowerCase()}-${now}.pdf`)
 }
