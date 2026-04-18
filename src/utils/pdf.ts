@@ -1,6 +1,15 @@
 import { ScenarioInput, ScenarioResult } from '@/types'
-import { formatPHP, formatPercent } from './formatters'
+import { formatPercent } from './formatters'
 import { format } from 'date-fns'
+
+// jsPDF's built-in Helvetica font does not include the ₱ character.
+// Use "PHP" prefix for all currency values in the PDF to avoid garbled text.
+function pdfMoney(amount: number): string {
+  return 'PHP ' + new Intl.NumberFormat('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
 
 export async function exportScenarioPDF(
   scenario: ScenarioInput,
@@ -39,10 +48,10 @@ export async function exportScenarioPDF(
   let contribDesc = ''
   if (scenario.contributionMode === 'fixed') {
     const freq = scenario.fixedFrequency === 'monthly' ? 'Monthly' : 'Yearly'
-    contribDesc = `${freq} — ${formatPHP(scenario.fixedAmount)}`
+    contribDesc = `${freq} — ${pdfMoney(scenario.fixedAmount)}`
   } else {
     const total = scenario.contributions.reduce((s, c) => s + c.amount, 0)
-    contribDesc = `Flexible — ${scenario.contributions.length} entries, ${formatPHP(total)} total`
+    contribDesc = `Flexible — ${scenario.contributions.length} entries, ${pdfMoney(total)} total`
   }
 
   const inputLines: [string, string][] = [
@@ -68,9 +77,9 @@ export async function exportScenarioPDF(
   doc.setFontSize(10)
 
   const summaryItems = [
-    ['Total Invested', formatPHP(result.totalContributions)],
-    ['Total Dividends', formatPHP(result.totalDividends)],
-    ['Maturity Value', formatPHP(result.maturityValue)],
+    ['Total Invested', pdfMoney(result.totalContributions)],
+    ['Total Dividends', pdfMoney(result.totalDividends)],
+    ['Maturity Value', pdfMoney(result.maturityValue)],
   ]
 
   for (let i = 0; i < summaryItems.length; i++) {
@@ -98,10 +107,10 @@ export async function exportScenarioPDF(
     head: [['Year', 'Opening Balance', 'Contributions', 'Dividends', 'Closing Balance']],
     body: result.yearlyBreakdown.map((row) => [
       `Year ${row.year}`,
-      formatPHP(row.openingBalance),
-      formatPHP(row.contributions),
-      formatPHP(row.dividends),
-      formatPHP(row.closingBalance),
+      pdfMoney(row.openingBalance),
+      pdfMoney(row.contributions),
+      pdfMoney(row.dividends),
+      pdfMoney(row.closingBalance),
     ]),
     headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [239, 246, 255] },
@@ -124,7 +133,7 @@ export async function exportScenarioPDF(
       autoTable(doc, {
         startY: newY + 4,
         head: [['Month', 'Amount']],
-        body: sorted.map((c) => [c.date, formatPHP(c.amount)]),
+        body: sorted.map((c) => [c.date, pdfMoney(c.amount)]),
         headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [255, 251, 235] },
         styles: { fontSize: 9 },

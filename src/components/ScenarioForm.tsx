@@ -497,6 +497,9 @@ interface CellInputProps {
 }
 
 function CellInput({ value, onChange, color }: CellInputProps) {
+  const [focused, setFocused] = useState(false)
+  const [draft, setDraft] = useState('')
+
   const ring = color === 'blue'
     ? 'focus:ring-2 focus:ring-blue-300 focus:border-brand-blue'
     : 'focus:ring-2 focus:ring-amber-300 focus:border-amber-400'
@@ -507,14 +510,29 @@ function CellInput({ value, onChange, color }: CellInputProps) {
     ? 'bg-blue-50/60 text-gray-400 border-blue-200'
     : 'bg-amber-50/60 text-gray-400 border-amber-200'
 
+  // While typing: show raw digits. When idle: show comma-formatted number.
+  const display = focused ? draft : (value > 0 ? value.toLocaleString('en-PH') : '')
+
   return (
     <input
-      type="number"
-      min={0}
-      step={500}
-      value={value || ''}
+      type="text"
+      inputMode="numeric"
+      value={display}
       placeholder="—"
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      onFocus={(e) => {
+        setFocused(true)
+        setDraft(value > 0 ? String(value) : '')
+        setTimeout(() => e.target.select(), 0)
+      }}
+      onBlur={() => {
+        setFocused(false)
+        const parsed = parseFloat(draft.replace(/,/g, '')) || 0
+        onChange(parsed)
+      }}
+      onChange={(e) => {
+        // Allow digits only while editing
+        setDraft(e.target.value.replace(/[^0-9]/g, ''))
+      }}
       className={`w-full h-11 px-2 text-sm font-bold text-right border-2 rounded-lg focus:outline-none transition-colors placeholder:text-gray-300 placeholder:text-center
         ${value > 0 ? filled : empty}
         ${ring}`}

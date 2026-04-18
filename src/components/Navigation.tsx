@@ -74,19 +74,6 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
         </div>
       </div>
 
-      {/* Trademark strip */}
-      <div className="bg-brand-blue/80 border-t border-white/10 py-1 text-center">
-        <span className="text-blue-300 text-[10px]">
-          Powered by{' '}
-          <a
-            href="mailto:jwmdigitalsolutions@gmail.com"
-            className="text-brand-gold hover:text-brand-gold-light underline underline-offset-2 font-medium transition-colors"
-          >
-            jwmdigitalsolutions@gmail.com
-          </a>
-          {' '}· For educational purposes only
-        </span>
-      </div>
     </header>
   )
 }
