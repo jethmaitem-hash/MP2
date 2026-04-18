@@ -60,7 +60,11 @@ export function MP2Calculator() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
         {state.activeTab === 'calculator' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-5 sm:gap-6">
+          <div className={`grid grid-cols-1 gap-5 sm:gap-6 ${
+            activeScenario.contributionMode === 'flexible'
+              ? 'lg:grid-cols-[560px_1fr]'
+              : 'lg:grid-cols-[380px_1fr]'
+          }`}>
             {/* ── Left: Inputs ── */}
             <div className="space-y-4">
               <ScenarioForm
